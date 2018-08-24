@@ -1,0 +1,1 @@
+# php-graphql-client-generator
