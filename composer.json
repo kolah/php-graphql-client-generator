@@ -1,0 +1,23 @@
+{
+    "name": "kolah/php-graphql-client-generator",
+    "description": "PHP GraphQL client generator",
+    "type": "library",
+    "require": {
+        "php": "^7.1",
+        "webonyx/graphql-php": "^0.10",
+        "kolah/php-graphql-client-base": "^1.0",
+        "nette/php-generator": "^3.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Kolah\\GraphQL\\": "src/GraphQL"
+        }
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Krzysztof Kolasiak",
+            "email": "krzysztof.kolasiak@docplanner.com"
+        }
+    ]
+}
