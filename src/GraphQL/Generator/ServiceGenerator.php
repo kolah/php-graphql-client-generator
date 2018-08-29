@@ -116,18 +116,18 @@ class ServiceGenerator implements GeneratesCode
         $method->setVisibility('public');
         $method->setReturnType($typeManager->getPhpType($field->type));
 
+        // Add the selection argument if it is an object type
+        if ($selectionField = $this->getSelectionArgument($field->type, $typeManager)) {
+            $method->addParameter('fieldSelection')
+                ->setTypeHint($selectionField);
+        }
+
         // Handle arguments
         foreach ($field->arguments as $argument) {
             $type = $typeManager->getPhpType($argument->type);
             $parameter = $method->addParameter($argument->name->value);
             $parameter->setTypeHint($type)
                 ->setNullable($typeManager->allowsNull($argument->type));
-        }
-
-        // Add the selection argument if it is an object type
-        if ($selectionField = $this->getSelectionArgument($field->type, $typeManager)) {
-            $method->addParameter('fieldSelection')
-                ->setTypeHint($selectionField);
         }
 
         // Add the body

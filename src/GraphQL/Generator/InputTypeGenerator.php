@@ -3,6 +3,7 @@
 namespace Kolah\GraphQL\Generator;
 
 use GraphQL\Language\AST\InputValueDefinitionNode;
+use Kolah\GraphQL\Client\InputObject;
 use Kolah\GraphQL\Generator\Data\InputTypeDefinition;
 use Nette\PhpGenerator\ClassType;
 use Nette\PhpGenerator\Helpers;
@@ -30,29 +31,28 @@ class InputTypeGenerator implements GeneratesCode
         $className = $namespace->unresolveName($fqcn);
 
         $class = $namespace->addClass($className);
+        $namespace->addUse(InputObject::class);
+        $class->addExtend(InputObject::class);
 
         $this->addConstructor($class, $definition, $typeManager);
-        $this->addProperties($class, $definition, $typeManager);
+        $this->addConstants($class, $definition, $typeManager);
 
         file_put_contents("$outputDirectory/Types/$className.php", (string)$file);
     }
 
-    protected function addProperties(ClassType $inputObject, InputTypeDefinition $definition, TypeManager $typeManager): void
+    protected function addConstants(ClassType $inputObject, InputTypeDefinition $definition, TypeManager $typeManager): void
     {
         $inputNode = $definition->getGraphQLDefinition();
         $namespace = $inputObject->getNamespace();
 
         foreach ($inputNode->fields as $field) {
             $typeName = $typeManager->getPhpType($field->type);
+            $constantName = strtoupper(Util::fromCamelCaseToUnderscore($field->name->value));
+            $inputObject->addConstant($constantName, $field->name->value);
 
             if ($typeManager->isNonScalar($field) && false === in_array($typeName, $namespace->getUses())) {
                 $namespace->addUse($typeName);
             }
-            $property = $inputObject->addProperty($field->name->value);
-            $property->addComment(Util::replaceTokens("@var {type}{null}", [
-                'type' => $namespace->unresolveName($typeManager->getPhpDocType($field->type)),
-                'null' => $typeManager->allowsNull($field->type) ? '|null' : '',
-            ]));
         }
     }
 
@@ -76,10 +76,11 @@ class InputTypeGenerator implements GeneratesCode
             $parameter = $method->addParameter($field->name->value);
             $typeName = $typeManager->getPhpType($field->type);
 
-            if ($typeManager->isNonScalar($field) && false === in_array($typeName, $namespace->getUses())) {
+            if ($typeManager->isNonScalar($field)) {
                 $namespace->addUse($typeName);
             }
 
+            $constantName = strtoupper(Util::fromCamelCaseToUnderscore($field->name->value));
             $parameter->setTypeHint($typeName);
 
             if ($typeManager->allowsNull($field->type) || null !== $field->defaultValue) {
@@ -87,8 +88,8 @@ class InputTypeGenerator implements GeneratesCode
                 $parameter->setDefaultValue(null);
             }
 
-            $sets[] = Util::replaceTokens('$this->{propertyName} = ${variableName};', [
-                'propertyName' => $field->name->value,
+            $sets[] = Util::replaceTokens('$this->data[self::{constantName}] = ${variableName};', [
+                'constantName' => $constantName,
                 'variableName' => $field->name->value
             ]);
         }
