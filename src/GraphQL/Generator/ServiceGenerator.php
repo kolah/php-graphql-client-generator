@@ -83,7 +83,7 @@ class ServiceGenerator implements GeneratesCode
     protected function buildQueryMethods(ClassType $serviceObject, OperationDefinition $definition, TypeManager $typeManager): void
     {
         $field = $definition->getGraphQLDefinition();
-        $method = $serviceObject->addMethod($definition->getName());
+        $method = $serviceObject->addMethod('query' . ucfirst($definition->getName()));
         $method->setVisibility('public');
         $method->setReturnType($typeManager->getPhpType($field->type));
 
@@ -112,7 +112,7 @@ class ServiceGenerator implements GeneratesCode
     protected function buildMutationMethods(ClassType $serviceObject, OperationDefinition $definition, TypeManager $typeManager): void
     {
         $field = $definition->getGraphQLDefinition();
-        $method = $serviceObject->addMethod($definition->getName());
+        $method = $serviceObject->addMethod('mutation' . ucfirst($definition->getName()));
         $method->setVisibility('public');
         $method->setReturnType($typeManager->getPhpType($field->type));
 
@@ -315,6 +315,6 @@ SET;
             }
         }
 
-        return sprintf('$result;');
+        return sprintf('$result');
     }
 }
