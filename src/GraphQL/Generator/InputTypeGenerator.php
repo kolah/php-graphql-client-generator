@@ -62,17 +62,15 @@ class InputTypeGenerator implements GeneratesCode
         $inputNode = $definition->getGraphQLDefinition();
         $method = $inputObject->addMethod('__construct');
         $sets = [];
+        $constructorArgumentCount = 0;
+        foreach ($inputNode->fields as $field) {
+            if ($typeManager->allowsNull($field->type) || null !== $field->defaultValue) {
+                $this->addOptionalArguments($inputObject, $field, $typeManager);
 
-        /** @noinspection PhpParamsInspection */
-        $fields = iterator_to_array($inputNode->fields);
-        usort($fields, function (InputValueDefinitionNode $field1, InputValueDefinitionNode $field2) use ($typeManager) {
-            $nullable1 = $typeManager->allowsNull($field1) || null !== $field1->defaultValue;
-            $nullable2 = $typeManager->allowsNull($field2) || null !== $field2->defaultValue;
+                continue;
+            }
 
-            return (int)$nullable1 <=> (int)$nullable2;
-        });
-
-        foreach ($fields as $field) {
+            $constructorArgumentCount++;
             $parameter = $method->addParameter($field->name->value);
             $typeName = $typeManager->getPhpType($field->type);
 
@@ -83,11 +81,6 @@ class InputTypeGenerator implements GeneratesCode
             $constantName = strtoupper(Util::fromCamelCaseToUnderscore($field->name->value));
             $parameter->setTypeHint($typeName);
 
-            if ($typeManager->allowsNull($field->type) || null !== $field->defaultValue) {
-                $parameter->setNullable();
-                $parameter->setDefaultValue(null);
-            }
-
             $sets[] = Util::replaceTokens('$this->data[self::{constantName}] = ${variableName};', [
                 'constantName' => $constantName,
                 'variableName' => $field->name->value
@@ -95,5 +88,42 @@ class InputTypeGenerator implements GeneratesCode
         }
 
         $method->setBody(implode("\n", $sets));
+
+        if ($constructorArgumentCount === 0) {
+            $inputObject->removeMethod('__construct');
+        }
+    }
+
+    protected function addOptionalArguments(ClassType $inputObject, InputValueDefinitionNode $field, TypeManager $typeManager): void
+    {
+        $namespace = $inputObject->getNamespace();
+        $constantName = strtoupper(Util::fromCamelCaseToUnderscore($field->name->value));
+        $methodName = ucfirst($field->name->value);
+        $method = $inputObject->addMethod(Util::replaceTokens('with{methodName}', [
+            'methodName' => $methodName
+        ]));
+        $method->setVisibility('public');
+        $parameter = $method->addParameter('value');
+
+        $typeName = $typeManager->getPhpType($field->type);
+
+        if ($typeManager->isNonScalar($field)) {
+            $namespace->addUse($typeName);
+        }
+
+        $parameter->setTypeHint($typeName);
+        $parameter->setNullable(true);
+
+        $body = <<<BODY
+if (is_null(\$value)) {
+    return \$this;
+}
+\$this->data[self::$constantName] = \$value;
+
+return \$this;
+BODY;
+
+
+        $method->addBody($body);
     }
 }

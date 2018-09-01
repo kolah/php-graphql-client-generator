@@ -84,12 +84,10 @@ class FieldSelectionGenerator implements GeneratesCode
             $method->addParameter($argName);
 
             // Log the setter we will need for this
-            $argumentSetters[] = sprintf('$%s->isNone() ?: $args[\'%s\'] = $%s;', $argName, $argName, $argName);
+            $argumentSetters[] = sprintf('$%s->isEmpty() ?: $args[\'%s\'] = $%s;', $argName, $argName, $argName);
         }
 
-        $body = <<<BODY
-        return \$this->withSpecifiedField(self::$constantName, $args, $fieldSelection);
-BODY;
+        $body = "return \$this->withSpecifiedField(self::$constantName, $args, $fieldSelection);";
 
         if ($argumentSetters) {
             $body = "\n" . $body;
