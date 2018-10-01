@@ -47,6 +47,7 @@ class FieldSelectionGenerator implements GeneratesCode
     protected function addField(FieldDefinitionNode $fieldNode, ClassType $selectionObject, TypeManager $typeManager): void
     {
         $type = $fieldNode->type;
+        $namespace = $selectionObject->getNamespace();
 
         while ($type instanceof ListTypeNode || $type instanceof NonNullTypeNode) {
             $type = $type->type;
@@ -81,10 +82,21 @@ class FieldSelectionGenerator implements GeneratesCode
             }
 
             // This is mixed because it is actually an option
-            $method->addParameter($argName);
+            $allowsNull = $typeManager->allowsNull($argument);
+            $type = $typeManager->getPhpType($argument->type);
 
-            // Log the setter we will need for this
-            $argumentSetters[] = sprintf('$%s->isEmpty() ?: $args[\'%s\'] = $%s;', $argName, $argName, $argName);
+            if ($typeManager->isNonScalar($argument)) {
+                $namespace->addUse($type);
+            }
+
+            $parameter = $method->addParameter($argName);
+            $parameter->setNullable($allowsNull);
+            $parameter->setTypeHint($type);
+            if ($allowsNull) {
+                $parameter->setDefaultValue(null);
+            }
+
+            $argumentSetters[] = sprintf('null === $%s ?: $args[\'%s\'] = $%s;', $argName, $argName, $argName);
         }
 
         $body = "return \$this->withSpecifiedField(self::$constantName, $args, $fieldSelection);";
